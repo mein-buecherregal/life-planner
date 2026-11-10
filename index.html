@@ -487,6 +487,15 @@ body.dnd{overflow:hidden;touch-action:none}
             <div class="msg" id="bkMsg"></div>
       <button class="btn sec" id="logoutBtn" style="margin-top:12px;display:none">Abmelden</button>
     </div>
+    <div class="card" id="wCard" style="display:none">
+      <h3>📱 iPhone-Widgets</h3>
+      <div class="small muted" style="margin:4px 0 8px;line-height:1.5" id="wInfo"></div>
+      <button class="btn" id="wCopy" style="margin-top:0">Widget-Script kopieren</button>
+      <textarea id="wText" readonly style="display:none;width:100%;height:120px;margin-top:8px;font-size:11px"></textarea>
+      <div class="msg" id="wMsg"></div>
+      <div class="small muted" style="margin-top:10px;line-height:1.55"><b>So geht's:</b><br>1. App „Scriptable“ (kostenlos) installieren.<br>2. Hier „Widget-Script kopieren“ tippen.<br>3. In Scriptable oben rechts <b>＋</b> → einfügen → oben den Namen „Life Planner“ geben → Fertig.<br>4. Home-Bildschirm lange drücken → <b>＋</b> → Scriptable → Größe wählen → Widget hinzufügen.<br>5. Widget lange drücken → „Widget bearbeiten“ → Script: <b>Life Planner</b>, Parameter: <b>heute</b>, <b>gewohnheiten</b>, <b>kalender</b>, <b>aufgaben</b>, <b>vers</b> oder <b>fortschritt</b>.</div>
+      <button class="link" id="wNew" style="margin-top:8px">Neuen geheimen Schlüssel erzeugen</button>
+    </div>
   </section>
 
   <!-- FITNESS -->
@@ -704,9 +713,9 @@ const DEF_DARK={elegant:false,modern:true,suess:false,casual:false};
 const mq=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):null;
 function applyMode(m){if(m)mode=m;ls.set("mode",mode);const dark=mode==="dark"||(mode==="auto"&&(theme==="modern"?!(mq&&!mq.matches&&false):(mq&&mq.matches)));
   document.documentElement.dataset.mode=mode==="auto"?(theme==="modern"?"dark":(mq&&mq.matches?"dark":"light")):mode;
-  document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));if(typeof renderQuoteOrPhoto==="function"&&$("quote"))renderQuoteOrPhoto();}
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));if(typeof renderQuoteOrPhoto==="function"&&$("quote"))renderQuoteOrPhoto();if(typeof publishWidget==="function")publishWidget();}
 if(mq&&mq.addEventListener)mq.addEventListener("change",()=>applyMode());
-function applyTheme(t){theme=t;document.documentElement.dataset.theme=t;applyMode();ls.set("theme",t);document.querySelectorAll("#styles .chip").forEach(c=>c.classList.toggle("on",c.dataset.t===t));renderVerseArt();renderQuoteOrPhoto();renderChart();}
+function applyTheme(t){theme=t;document.documentElement.dataset.theme=t;applyMode();ls.set("theme",t);document.querySelectorAll("#styles .chip").forEach(c=>c.classList.toggle("on",c.dataset.t===t));renderVerseArt();renderQuoteOrPhoto();renderChart();if(typeof publishWidget==="function")publishWidget();}
 $("styleBtn").onclick=()=>$("styles").classList.toggle("on");
 $("styles").onclick=e=>{const m=e.target.closest("[data-m]");if(m){applyMode(m.dataset.m);return;}const b=e.target.closest(".chip");if(b){applyTheme(b.dataset.t);$("styles").classList.remove("on");}};
 function banner(t,btn){$("banner").classList.toggle("on",!!t);$("bannerTxt").textContent=t||"";$("bannerBtn").style.display=btn?"":"none";}
@@ -1041,6 +1050,37 @@ async function applyPendingWeights(){
   for(const e of l)await put("weights",{id:"w"+e.date,date:e.date,weight:e.weight});
   ls.set("pendW",null);banner(`${l.length} Gewichtseinträge übernommen ✓`);setTimeout(()=>banner(""),5000);
 }
+
+// ================= iPhone-Widget =================
+let wTimer=null,wLast="";
+function widgetSummary(){
+  const t=today(),cs=getComputedStyle(document.documentElement),c=k=>cs.getPropertyValue("--"+k).trim();
+  const hl=(S.habits.list||[]).map(h=>({n:h.name,d:(S.habits.log[t]||[]).includes(h.id)}));
+  const ev=[];for(let i=0;i<14&&ev.length<14;i++){const d=addDays(t,i);eventsOn(d).forEach(e=>ev.push({d,t:e.time||"",n:e.title||"",k:e.kind||""}));}
+  const open=S.data.tasks.filter(x=>!x.done);const tk=[...open.filter(x=>x.due).sort((a,b)=>a.due.localeCompare(b.due)),...open.filter(x=>!x.due).sort((a,b)=>(a.prio||"q9").localeCompare(b.prio||"q9"))].slice(0,12).map(x=>({n:x.title,d:x.due||"",p:x.prio||""}));
+  const sv=saveStats(),[vr,vt]=VERSES[doy(new Date())%VERSES.length];
+  return{v:1,date:t,theme,dark:document.documentElement.dataset.mode==="dark",col:{bg:c("bg"),card:c("card"),ink:c("ink"),muted:c("muted"),accent:c("accent"),good:c("good"),bad:c("bad"),soft:c("soft"),line:c("line")},habits:hl,events:ev.slice(0,14),tasks:tk,openTasks:open.length,steps:{n:S.steps.log[t]||0,g:stepGoal()},save:{pct:sv.pct},verse:[vr,vt],app:location.origin+location.pathname};
+}
+function publishWidget(force){
+  if(!(CLOUD&&DB&&ME&&settingsReady&&S.settings.wtoken))return;clearTimeout(wTimer);
+  wTimer=setTimeout(()=>{try{const sm=widgetSummary(),j=JSON.stringify(sm);if(j===wLast&&!force)return;wLast=j;DB.doc("widgets/"+S.settings.wtoken).set({uid:ME,json:j,at:Date.now()}).catch(e=>console.warn("widget",e));}catch(e){console.warn(e);}},force?50:2500);
+}
+function newWToken(){const a=new Uint8Array(24);crypto.getRandomValues(a);return[...a].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function renderWidgetCard(){
+  $("wCard").style.display=CLOUD?"":"none";if(!CLOUD)return;
+  $("wInfo").innerHTML="Zeig Gewohnheiten, Termine, Aufgaben, Vers oder Fortschritt auf deinem Home-Bildschirm – in deinem App-Stil. Die Widgets lesen nur eine kleine Tagesübersicht unter einem <b>geheimen Schlüssel</b> (kein Gewicht, keine Notizen). Gib das Script nicht weiter.";
+}
+async function widgetScript(){
+  if(!settingsReady)throw new Error("not ready");
+  if(!S.settings.wtoken){S.settings.wtoken=newWToken();await saveSettings();}
+  publishWidget(true);
+  const src=await (await fetch("widget.js",{cache:"no-store"})).text();
+  return src.replace("__TOKEN__",S.settings.wtoken).replace("__KEY__",window.FIREBASE_CONFIG.apiKey).replace("__PROJECT__",window.FIREBASE_CONFIG.projectId);
+}
+$("wCopy").onclick=async()=>{const m=$("wMsg");m.className="msg";m.textContent="";
+  try{const txt=await widgetScript();try{await navigator.clipboard.writeText(txt);m.className="msg ok";m.textContent="✓ Kopiert – jetzt in Scriptable einfügen.";}catch(e){const ta=$("wText");ta.style.display="";ta.value=txt;ta.focus();ta.select();m.className="msg";m.textContent="Bitte den Text unten markieren und kopieren.";}}
+  catch(e){m.className="msg err";m.textContent="Das hat nicht geklappt – bist du online?";}};
+$("wNew").onclick=()=>openSheet("Neuen Schlüssel erzeugen?",[{k:"x",l:"Deine bisherigen Widgets hören dann auf zu funktionieren und müssen das neue Script bekommen. Zum Bestätigen „ja“ eingeben:",req:1}],async v=>{if((v.x||"").trim().toLowerCase()!=="ja")return;const old=S.settings.wtoken;if(old)DB.doc("widgets/"+old).delete().catch(()=>{});S.settings.wtoken=newWToken();wLast="";await saveSettings();publishWidget(true);$("wMsg").className="msg ok";$("wMsg").textContent="Neuer Schlüssel erstellt – bitte das Script neu kopieren.";});
 
 // ================= Datensicherung =================
 let downloads=null;
@@ -1772,7 +1812,7 @@ function route(){
 window.addEventListener("hashchange",route);
 window.addEventListener("resize",renderChart);
 
-function renderAll(){syncFit();renderVision();if($("v-statistik").classList.contains("on"))renderStats();renderWQ();renderTraining();layoutWidgets();renderMood();renderMatrix();renderHeute();renderProjects();renderCals();renderTasks();renderHabits();renderSave();renderSteps();renderBackupInfo();renderGoals();renderGrat();renderFitness();}
+function renderAll(){syncFit();renderVision();if($("v-statistik").classList.contains("on"))renderStats();renderWQ();renderTraining();layoutWidgets();renderMood();renderMatrix();renderHeute();renderProjects();renderCals();renderTasks();renderHabits();renderSave();renderSteps();renderBackupInfo();renderGoals();renderGrat();renderFitness();renderWidgetCard();publishWidget();}
 
 // ================= Start =================
 $("today").textContent=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
