@@ -384,9 +384,12 @@ code.c{font-size:11px;background:var(--bg);padding:2px 5px;border-radius:5px;wor
 .dragclone{position:fixed;z-index:50;pointer-events:none;box-shadow:0 16px 40px rgba(0,0,0,.3);transform:rotate(2deg) scale(1.03);opacity:.95;border-radius:var(--r)}
 body.dnd{overflow:hidden;touch-action:none}
 /* Login */
-.login{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}
-.login.on{display:flex}
-.login .box{width:100%;max-width:360px;text-align:center}
+.login{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:24px 24px calc(40px + env(safe-area-inset-bottom))}
+.login.on{display:block}
+.login .box{width:100%;max-width:360px;margin:6vh auto 0;text-align:center}
+.login input.in{font-size:16px;padding:12px}
+.login .btn{width:100%;margin-top:10px;padding:12px;font-size:16px}
+.login .msg{margin-top:12px;min-height:1.2em}
 .login img{width:84px;height:84px;border-radius:20px;box-shadow:var(--shadow)}
 .login h1{margin:12px 0 4px}
 .login .in{margin-top:8px;text-align:left}
@@ -624,7 +627,7 @@ body.dnd{overflow:hidden;touch-action:none}
 </nav>
 
 <div class="login" id="login"><form class="box" id="loginForm">
-  <img src="icon-192.png" alt=""><h1>Life Planner</h1>
+  <img src="icon-192.png" alt=""><h1 id="lTitle">Life Planner</h1>
   <div class="small muted" id="loginSub">Melde dich an – deine Daten werden automatisch & sicher in deinem Konto gespeichert.</div>
   <input class="in" type="email" id="lEmail" placeholder="E-Mail" autocomplete="email" required>
   <input class="in" type="password" id="lPw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password" required minlength="6">
@@ -1062,7 +1065,7 @@ let CLOUD=false,signupMode=false;
 const AUTHMSG={"auth/invalid-credential":"E-Mail oder Passwort stimmt nicht.","auth/wrong-password":"Das Passwort stimmt nicht.","auth/user-not-found":"Zu dieser E-Mail gibt es noch kein Konto.","auth/email-already-in-use":"Für diese E-Mail gibt es schon ein Konto – melde dich an.","auth/weak-password":"Das Passwort braucht mindestens 6 Zeichen.","auth/invalid-email":"Bitte eine gültige E-Mail eingeben.","auth/too-many-requests":"Zu viele Versuche – bitte kurz warten.","auth/network-request-failed":"Keine Internetverbindung.","auth/unauthorized-domain":"Diese Adresse ist in Firebase noch nicht freigegeben (Autorisierte Domains)."};
 function showLogin(on){$("login").classList.toggle("on",on);}
 function lmsg(t,c){const m=$("lMsg");m.className="msg "+(c||"err");m.textContent=t;}
-$("lMode").onclick=()=>{signupMode=!signupMode;$("lGo").textContent=signupMode?"Konto erstellen":"Anmelden";$("lMode").textContent=signupMode?"Ich habe schon ein Konto":"Neues Konto erstellen";$("lPw").autocomplete=signupMode?"new-password":"current-password";lmsg("","");};
+$("lMode").onclick=()=>{const em=$("lEmail").value.trim(),pw=$("lPw").value;const go=!signupMode&&em&&pw.length>=6;signupMode=!signupMode;$("lTitle").textContent=signupMode?"Neues Konto":"Life Planner";$("loginSub").textContent=signupMode?"Gib deine E-Mail und ein Passwort (mind. 6 Zeichen) ein und tippe auf „Konto erstellen“.":"Melde dich an – deine Daten werden automatisch & sicher in deinem Konto gespeichert.";$("lGo").textContent=signupMode?"Konto erstellen":"Anmelden";$("lMode").textContent=signupMode?"Ich habe schon ein Konto":"Neues Konto erstellen";$("lPw").autocomplete=signupMode?"new-password":"current-password";lmsg("","");if(go)$("loginForm").requestSubmit();};
 $("loginForm").onsubmit=async e=>{e.preventDefault();if(!window.FBX)return;const em=$("lEmail").value.trim(),pw=$("lPw").value;$("lGo").disabled=true;lmsg("","");
   try{signupMode?await FBX.signUp(em,pw):await FBX.signIn(em,pw);}catch(x){lmsg(AUTHMSG[x.code]||("Das hat nicht geklappt ("+(x.code||"Fehler")+")."));}finally{$("lGo").disabled=false;}};
 $("lReset").onclick=async()=>{const em=$("lEmail").value.trim();if(!em){lmsg("Gib oben deine E-Mail ein, dann tippe nochmal hier.");return;}try{await FBX.reset(em);lmsg("Wir haben dir eine E-Mail zum Zurücksetzen geschickt.","ok");}catch(x){lmsg(AUTHMSG[x.code]||"Das hat nicht geklappt.");}};
