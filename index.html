@@ -1030,6 +1030,18 @@ function takeStepsFromHash(){
   location.replace("#fitness");return true;
 }
 
+function takeWeightsFromHash(){
+  const m=(location.hash||"").match(/^#gewicht-import=([0-9.,-]+)$/);if(!m)return false;
+  const l=m[1].split(",").map(x=>{const [d,w]=x.split("-");return d&&d.length===8&&+w>0?{date:`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`,weight:+w}:null;}).filter(Boolean);
+  if(l.length){ls.set("pendW",l);banner(`${l.length} Gewichtseinträge werden übernommen …`);}
+  location.replace("#fitness");applyPendingWeights();return true;
+}
+async function applyPendingWeights(){
+  const l=ls.get("pendW");if(!l||!l.length||!(DB&&ME))return;
+  for(const e of l)await put("weights",{id:"w"+e.date,date:e.date,weight:e.weight});
+  ls.set("pendW",null);banner(`${l.length} Gewichtseinträge übernommen ✓`);setTimeout(()=>banner(""),5000);
+}
+
 // ================= Datensicherung =================
 let downloads=null;
 function backupData(){return{app:"Life Planner",version:1,created:new Date().toISOString(),data:JSON.parse(JSON.stringify(S.data)),habits:S.habits,steps:S.steps,mood:S.mood,plan:S.plan,settings:S.settings};}
@@ -1086,7 +1098,7 @@ window.onCloudAuth=user=>{
   sub("plan",d=>{S.plan=d||{};});
   sub("mood",d=>{S.mood={log:(d&&d.log)||{}};});
   sub("steps",d=>{S.steps={log:(d&&d.log)||{},goal:d&&d.goal};if(pendingSteps){const p=pendingSteps;pendingSteps=null;setSteps(p[0],p[1]);}});
-  renderAll();
+  renderAll();applyPendingWeights();
 };
 // Foto für die Cloud verkleinern (max. ~700 KB pro Foto)
 function toDataURL(blob,maxSide,q){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(blob);img.onload=()=>{const sc=Math.min(1,maxSide/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",q));};img.onerror=()=>{URL.revokeObjectURL(u);rej();};img.src=u;});}
@@ -1749,7 +1761,7 @@ const VIEWS=["vision","statistik","stimmung","heute","planer","projekte","projek
 const ALIAS={kalender:"planer",aufgaben:"planer",finanzen:"ziele"};
 const TAB_OF={vision:"bereiche",statistik:"bereiche",stimmung:"bereiche",matrix:"planer",projekt:"projekte",gewohnheiten:"bereiche",ziele:"bereiche",dankbarkeit:"bereiche"};
 function route(){
-  if(takeStepsFromHash())return;
+  if(takeStepsFromHash()||takeWeightsFromHash())return;
   let v=(location.hash||"#heute").slice(1);v=ALIAS[v]||v;const ok=VIEWS.includes(v)?v:"heute";
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+ok));
   document.querySelectorAll("nav.tabs a").forEach(a=>a.classList.toggle("on",a.dataset.v===(TAB_OF[ok]||ok)));
