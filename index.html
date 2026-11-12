@@ -2,7 +2,7 @@
 <html lang="de" data-theme="elegant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -42,6 +42,8 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.4}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:hidden;overscroll-behavior-x:none}
+@supports (-webkit-touch-callout:none){input,select,textarea,.addrow .in,textarea.in,.edrow .in{font-size:16px!important}}
 button,input,select{font-family:inherit;color:inherit}
 .wrap{max-width:560px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 14px 92px}
 h1,h2,h3{font-family:var(--head);font-weight:var(--hw);margin:0}
@@ -1851,6 +1853,11 @@ if(window.FIREBASE_CONFIG){
     A.onAuthStateChanged(auth,u=>window.onCloudAuth&&window.onCloudAuth(u));
   }catch(e){console.error(e);window.onCloudFail&&window.onCloudFail(e);}
 }
+</script>
+<script>
+// Zoomen per Zwei-Finger-Geste und Doppeltippen verhindern (iPhone)
+["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 </script>
 </body>
 </html>
